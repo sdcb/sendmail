@@ -1,10 +1,9 @@
-﻿using Fclp;
+﻿using AegisImplicitMail;
+using Fclp;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
-using System.Net;
-using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -19,25 +18,22 @@ namespace sendmail
 
         static void SendMail(SendMailConfig config, SendMailContext context)
         {
-            var client = new SmtpClient(config.Smtp, config.Port);
-            client.EnableSsl = config.SslEnabled;
-            client.Credentials = new NetworkCredential
-            {
-                UserName = config.From,
-                Password = config.Password,
-            };
-            var mail = new MailMessage();
-            mail.From = new MailAddress(config.From, context.DisplayName ?? config.From);
+            var client = new SmtpSocketClient(config.Smtp, config.Port, config.From, config.Password);
+            client.SslType = config.SslEnabled ? SslMode.Ssl : SslMode.Auto;
+            var mail = new MimeMailMessage();
+            mail.From = new System.Net.Mail.MailAddress(context.DisplayName ?? config.From);
+            mail.Sender = new System.Net.Mail.MailAddress(config.From);
             mail.To.Add(context.To);
             mail.IsBodyHtml = context.IsBodyHtml;
             mail.Subject = context.Subject;
             mail.Body = context.Body;
+            mail.BodyEncoding = Encoding.UTF8;
             foreach (var attachment in context.Attachments)
             {
-                mail.Attachments.Add(new Attachment(attachment));
+                mail.Attachments.Add(new MimeAttachment(attachment));
             }
-            
-            client.Send(mail);
+
+            client.SendMail(mail);
         }
     }
 
@@ -74,7 +70,7 @@ namespace sendmail
 
         public bool IsBodyHtml { get; set; }
 
-        public List<string> Attachments { get; set; }
+        public List<string> Attachments { get; set; } = new List<string>();
 
         public string Subject { get; set; }
 
